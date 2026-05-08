@@ -76,7 +76,13 @@ foreach ($f in $files) {
         continue
     }
     $label = $existingLabels[$f.Name]
-    if (-not $label) { $label = "Build $($header.OSVersion)" }
+    if (-not $label) {
+        $label = "Build $($header.OSVersion)"
+        # Filename-driven annotations. Add more here as needed.
+        $base = [System.IO.Path]::GetFileNameWithoutExtension($f.Name)
+        if ($base -match '(?i)_Server')  { $label += ' (Server)' }
+        if ($base -match '(?i)_Insider') { $label += ' (Insider)' }
+    }
 
     $entries += [pscustomobject]@{
         file = $f.Name
