@@ -1,0 +1,84 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EtwWatcher - Browse and diff ETW provider snapshots</title>
+  <meta name="description" content="Inspect Windows ETW providers across builds. Browse a snapshot or diff two snapshots to see what changed.">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-slate-950 text-slate-200 min-h-screen">
+  <div class="max-w-6xl mx-auto px-4 py-8">
+
+    <header class="mb-6">
+      <div class="flex items-baseline justify-between gap-4 flex-wrap">
+        <h1 class="text-3xl font-semibold tracking-tight">EtwWatcher</h1>
+        <a href="https://github.com/jonny-jhnson/EtwWatcher" class="text-sm text-slate-400 hover:text-slate-200">GitHub</a>
+      </div>
+      <p class="text-slate-400 mt-1">
+        Browse and diff snapshots of Windows ETW providers across builds. Snapshots are produced by
+        <a href="https://github.com/jonny-jhnson/ETWInspector" class="text-sky-400 hover:text-sky-300">ETWInspector</a>.
+      </p>
+    </header>
+
+    <div id="manifest-error" class="text-sm mb-4"></div>
+
+    <nav class="flex gap-2 mb-6 border-b border-slate-800">
+      <button data-tab="browse" class="bg-slate-800 text-white px-4 py-2 text-sm font-medium rounded-t hover:bg-slate-700">Browse</button>
+      <button data-tab="diff" class="text-slate-400 px-4 py-2 text-sm font-medium rounded-t hover:bg-slate-800/50">Diff</button>
+    </nav>
+
+    <!-- Browse view -->
+    <section data-view="browse">
+      <div class="grid md:grid-cols-[1fr_auto] gap-3 mb-4">
+        <div class="flex gap-2">
+          <select id="browse-snapshot" class="flex-1 bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm font-mono"></select>
+          <button id="browse-load" class="bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 text-sm font-medium rounded">Load</button>
+        </div>
+        <div id="browse-meta" class="text-xs text-slate-500 self-center"></div>
+      </div>
+
+      <div id="browse-progress" class="mb-4"></div>
+
+      <div class="grid md:grid-cols-[1fr_auto] gap-3 mb-3 items-baseline">
+        <input id="browse-filter" type="text" placeholder="Filter providers (name, GUID, event description, keyword name)…" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm">
+        <div id="browse-count" class="text-xs text-slate-500 font-mono"></div>
+      </div>
+
+      <div id="browse-results" class="bg-slate-900 border border-slate-800 rounded"></div>
+    </section>
+
+    <!-- Diff view -->
+    <section data-view="diff" hidden>
+      <div class="grid md:grid-cols-2 gap-3 mb-4">
+        <div>
+          <label class="block text-xs text-slate-500 uppercase tracking-wide mb-1">Snapshot A (baseline)</label>
+          <select id="diff-a" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm font-mono"></select>
+        </div>
+        <div>
+          <label class="block text-xs text-slate-500 uppercase tracking-wide mb-1">Snapshot B (compare)</label>
+          <select id="diff-b" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm font-mono"></select>
+        </div>
+      </div>
+
+      <div class="grid md:grid-cols-[1fr_auto_auto] gap-3 mb-4 items-end">
+        <div>
+          <label class="block text-xs text-slate-500 uppercase tracking-wide mb-1">Filter by provider name (optional)</label>
+          <input id="diff-filter" type="text" placeholder="e.g. Threat, Kerberos, Kernel-Process…" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm">
+        </div>
+        <button id="diff-run" class="bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 text-sm font-medium rounded h-fit">Compute diff</button>
+        <div id="diff-status" class="text-xs text-slate-500 self-center"></div>
+      </div>
+
+      <div id="diff-results"></div>
+    </section>
+
+    <footer class="mt-12 pt-6 border-t border-slate-900 text-xs text-slate-600">
+      <p>Snapshots produced by <a href="https://github.com/jonny-jhnson/ETWInspector" class="text-slate-400 hover:text-slate-200">ETWInspector</a> - a PowerShell module for enumerating ETW providers, generating snapshots, and diffing them locally.</p>
+    </footer>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

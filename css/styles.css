@@ -1,0 +1,27 @@
+/* Small overrides on top of Tailwind. Keep this minimal. */
+
+details > summary {
+  list-style: none;
+}
+
+details > summary::-webkit-details-marker {
+  display: none;
+}
+
+details > summary::before {
+  content: '▸';
+  display: inline-block;
+  margin-right: 0.5rem;
+  color: #64748b;
+  transition: transform 0.1s;
+}
+
+details[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+/* Scrollable code blocks for long templates */
+pre {
+  max-height: 320px;
+  overflow: auto;
+}

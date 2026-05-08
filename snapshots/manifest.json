@@ -1,0 +1,14 @@
+{
+  "snapshots": [
+    {
+      "file": "26200.ndjson",
+      "label": "Windows 11 - Build 26200",
+      "osVersion": "10.0.26200.0"
+    },
+    {
+      "file": "28020.ndjson",
+      "label": "Windows 11 - Build 28020 (Insider)",
+      "osVersion": "10.0.28020.0"
+    }
+  ]
+}
