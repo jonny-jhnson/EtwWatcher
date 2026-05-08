@@ -12,11 +12,11 @@
 //
 // ProviderDiff: { providerGuid, providerName, providerFieldsChanged,
 //                 eventsAdded, eventsRemoved, eventsChanged }
-// EventDiff:    { id, version, changes: [{ field, a, b }] }
+// EventDiff:    { id, version, changes: [{ field, a, b }], a, b }
+//               (a and b are the full event objects, used by the diff view's
+//               render-time filtering by description/keyword/template)
 
-export function diffSnapshots(snapA, snapB, opts = {}) {
-  const { providerNameFilter } = opts;
-
+export function diffSnapshots(snapA, snapB) {
   const aMap = indexProviders(snapA.providers);
   const bMap = indexProviders(snapB.providers);
 
@@ -41,14 +41,6 @@ export function diffSnapshots(snapA, snapB, opts = {}) {
   out.providersAdded.sort(byName);
   out.providersRemoved.sort(byName);
   out.providersChanged.sort(byName);
-
-  if (providerNameFilter) {
-    const needle = providerNameFilter.toLowerCase();
-    const match = (n) => (n ?? '').toLowerCase().includes(needle);
-    out.providersAdded = out.providersAdded.filter((p) => match(p.ProviderName));
-    out.providersRemoved = out.providersRemoved.filter((p) => match(p.ProviderName));
-    out.providersChanged = out.providersChanged.filter((p) => match(p.providerName));
-  }
 
   return out;
 }
@@ -111,6 +103,8 @@ function diffProvider(a, b) {
   return {
     providerGuid: b.ProviderGuid,
     providerName: b.ProviderName,
+    resourceFilePath: b.ResourceFilePath,
+    schemaSource: b.SchemaSource,
     providerFieldsChanged: fieldsChanged,
     eventsAdded,
     eventsRemoved,
@@ -149,7 +143,7 @@ function diffEvent(a, b) {
   }
 
   if (changes.length === 0) return null;
-  return { id: b.Id, version: b.Version, changes };
+  return { id: b.Id, version: b.Version, changes, a, b };
 }
 
 function pushIfDifferent(list, field, a, b) {

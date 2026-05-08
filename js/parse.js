@@ -5,10 +5,12 @@
 // followed by one provider per line:
 //   {"ProviderGuid":"...","ProviderName":"...","Events":[...], ...}
 //
-// We stream the response body, decode UTF-8 progressively, split on '\n',
-// and parse each line. Reports progress so the UI can show a bar.
+// We stream the body, decode UTF-8 progressively, split on '\n', and parse
+// each line. Reports progress so the UI can show a bar. Two entry points:
+//   loadSnapshot(file)            -> fetches snapshots/<file>
+//   loadSnapshotFromFile(handle)  -> reads a File picked by the user
 
-const _snapshotCache = new Map(); // file -> parsed snapshot
+const _snapshotCache = new Map(); // key -> parsed snapshot
 
 export async function loadSnapshot(file, onProgress) {
   if (_snapshotCache.has(file)) {
@@ -24,62 +26,115 @@ export async function loadSnapshot(file, onProgress) {
 
   const total = Number(response.headers.get('content-length')) || 0;
   const reader = response.body.getReader();
-  const decoder = new TextDecoder('utf-8');
+  return consumeNdjsonStream({
+    reader,
+    total,
+    onProgress,
+    keyForCache: file,
+    file,
+  });
+}
 
+// Parses an NDJSON File handed to us by the user (file picker / drag-drop).
+// Returns the parsed snapshot; cache key is `local:<filename>`.
+export async function loadSnapshotFromFile(fileHandle, onProgress) {
+  const key = `local:${fileHandle.name}`;
+  // Replace any prior copy under the same name so re-uploads pick up edits
+  _snapshotCache.delete(key);
+
+  const reader = fileHandle.stream().getReader();
+  return consumeNdjsonStream({
+    reader,
+    total: fileHandle.size,
+    onProgress,
+    keyForCache: key,
+    file: key,
+    isLocal: true,
+    sourceName: fileHandle.name,
+  });
+}
+
+async function consumeNdjsonStream({ reader, total, onProgress, keyForCache, file, isLocal, sourceName }) {
+  const decoder = new TextDecoder('utf-8');
   let header = null;
   const providers = [];
   let buffer = '';
   let bytesRead = 0;
   let isFirstLine = true;
+  let lineNumber = 0;
 
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    bytesRead += value.byteLength;
-    buffer += decoder.decode(value, { stream: true });
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      bytesRead += value.byteLength;
+      buffer += decoder.decode(value, { stream: true });
 
-    let nl;
-    while ((nl = buffer.indexOf('\n')) !== -1) {
-      const line = buffer.slice(0, nl).trim();
-      buffer = buffer.slice(nl + 1);
-      if (!line) continue;
+      let nl;
+      while ((nl = buffer.indexOf('\n')) !== -1) {
+        const line = buffer.slice(0, nl).trim();
+        buffer = buffer.slice(nl + 1);
+        if (!line) continue;
+        lineNumber++;
 
-      const obj = JSON.parse(line);
+        let obj;
+        try {
+          obj = JSON.parse(line);
+        } catch (e) {
+          throw new Error(`Could not parse line ${lineNumber} as JSON: ${e.message}`);
+        }
+        if (isFirstLine) {
+          if (!isHeaderShape(obj)) {
+            throw new Error("First line isn't a snapshot header (expected SchemaVersion + OSVersion, no ProviderGuid).");
+          }
+          header = obj;
+          isFirstLine = false;
+        } else {
+          providers.push(obj);
+        }
+      }
+
+      onProgress?.({ bytesRead, total, providers: providers.length, done: false });
+    }
+
+    buffer += decoder.decode();
+    const tail = buffer.trim();
+    if (tail) {
+      lineNumber++;
+      const obj = JSON.parse(tail);
       if (isFirstLine) {
+        if (!isHeaderShape(obj)) {
+          throw new Error("Single-line file isn't a snapshot header.");
+        }
         header = obj;
-        isFirstLine = false;
       } else {
         providers.push(obj);
       }
     }
-
-    onProgress?.({
-      bytesRead,
-      total,
-      providers: providers.length,
-      done: false,
-    });
+  } finally {
+    reader.releaseLock?.();
   }
 
-  // Flush any tail without trailing newline
-  buffer += decoder.decode();
-  const tail = buffer.trim();
-  if (tail) {
-    const obj = JSON.parse(tail);
-    if (isFirstLine) header = obj;
-    else providers.push(obj);
-  }
+  if (!header) throw new Error('Snapshot is empty.');
+  if (providers.length === 0) throw new Error('Snapshot contains no providers (header only).');
 
   const snapshot = {
     file,
-    schemaVersion: header?.SchemaVersion ?? '1.0',
-    osVersion: header?.OSVersion ?? 'unknown',
+    isLocal: !!isLocal,
+    sourceName: sourceName ?? file,
+    schemaVersion: header.SchemaVersion ?? '1.0',
+    osVersion: header.OSVersion ?? 'unknown',
     providers,
   };
-
-  _snapshotCache.set(file, snapshot);
+  _snapshotCache.set(keyForCache, snapshot);
   onProgress?.({ done: true, fromCache: false });
   return snapshot;
+}
+
+function isHeaderShape(obj) {
+  if (!obj || typeof obj !== 'object') return false;
+  if (obj.ProviderGuid) return false;
+  return 'SchemaVersion' in obj || 'OSVersion' in obj;
 }
 
 export async function loadManifest() {

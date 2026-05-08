@@ -25,3 +25,34 @@ pre {
   max-height: 320px;
   overflow: auto;
 }
+
+/* Subtle glow behind the page header. Sits absolutely positioned so it
+   never interferes with layout; pure decoration. */
+.header-glow {
+  position: absolute;
+  inset: -40px -10% -40px -10%;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 600px 200px at 15% 50%,
+      rgba(56, 189, 248, 0.16) 0%,
+      rgba(56, 189, 248, 0.06) 40%,
+      transparent 70%);
+  z-index: 0;
+}
+
+/* Loading skeleton shimmer (used in diff view while computing) */
+@keyframes shimmer {
+  0%   { background-position: -800px 0; }
+  100% { background-position:  800px 0; }
+}
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgb(15 23 42 / 0.5) 0%,
+    rgb(30 41 59 / 0.9) 50%,
+    rgb(15 23 42 / 0.5) 100%
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.6s infinite linear;
+  border-radius: 0.25rem;
+}

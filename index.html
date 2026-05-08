@@ -8,42 +8,115 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="css/styles.css">
 </head>
-<body class="bg-slate-950 text-slate-200 min-h-screen">
-  <div class="max-w-6xl mx-auto px-4 py-8">
+<body class="bg-gradient-to-b from-slate-950 via-slate-950 to-slate-900 text-slate-200 min-h-screen">
+  <div class="max-w-6xl mx-auto px-4 py-10">
 
-    <header class="mb-6">
-      <div class="flex items-baseline justify-between gap-4 flex-wrap">
-        <h1 class="text-3xl font-semibold tracking-tight">EtwWatcher</h1>
-        <a href="https://github.com/jonny-jhnson/EtwWatcher" class="text-sm text-slate-400 hover:text-slate-200">GitHub</a>
+    <header class="relative mb-10 pt-2">
+      <div class="header-glow" aria-hidden="true"></div>
+      <div class="relative flex items-start justify-between gap-4 flex-wrap">
+        <div class="flex items-stretch gap-5">
+          <div class="w-1.5 bg-gradient-to-b from-sky-400 to-cyan-500 rounded-full"></div>
+          <div>
+            <h1 class="text-5xl font-bold tracking-tight leading-none bg-gradient-to-r from-sky-300 via-sky-400 to-cyan-400 bg-clip-text text-transparent">EtwWatcher</h1>
+            <p class="text-slate-300 text-lg mt-3 max-w-2xl leading-relaxed">
+              Browse and diff snapshots of Windows ETW providers across builds.
+            </p>
+            <p class="text-slate-500 text-sm mt-1 max-w-2xl">
+              Snapshots are produced by
+              <a href="https://github.com/jonny-jhnson/ETWInspector" class="text-sky-400 hover:text-sky-300">ETWInspector</a>.
+            </p>
+          </div>
+        </div>
+        <a href="https://github.com/jonny-jhnson/EtwWatcher" class="text-sm text-slate-400 hover:text-slate-200 mt-2 inline-flex items-center gap-1.5">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56v-2.05c-3.2.7-3.87-1.36-3.87-1.36-.52-1.32-1.27-1.67-1.27-1.67-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.02 1.76 2.69 1.25 3.34.96.1-.74.4-1.25.72-1.54-2.55-.29-5.24-1.27-5.24-5.66 0-1.25.45-2.27 1.18-3.07-.12-.29-.51-1.46.11-3.05 0 0 .96-.31 3.15 1.18a10.93 10.93 0 0 1 5.74 0c2.19-1.49 3.15-1.18 3.15-1.18.62 1.59.23 2.76.11 3.05.73.8 1.18 1.82 1.18 3.07 0 4.4-2.69 5.36-5.25 5.65.41.36.78 1.06.78 2.13v3.16c0 .31.21.68.8.56C20.21 21.39 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5Z"/></svg>
+          GitHub
+        </a>
       </div>
-      <p class="text-slate-400 mt-1">
-        Browse and diff snapshots of Windows ETW providers across builds. Snapshots are produced by
-        <a href="https://github.com/jonny-jhnson/ETWInspector" class="text-sky-400 hover:text-sky-300">ETWInspector</a>.
-      </p>
     </header>
 
     <div id="manifest-error" class="text-sm mb-4"></div>
 
-    <nav class="flex gap-2 mb-6 border-b border-slate-800">
-      <button data-tab="browse" class="bg-slate-800 text-white px-4 py-2 text-sm font-medium rounded-t hover:bg-slate-700">Browse</button>
-      <button data-tab="diff" class="text-slate-400 px-4 py-2 text-sm font-medium rounded-t hover:bg-slate-800/50">Diff</button>
+    <!-- Upload local NDJSON snapshots -->
+    <div id="upload-zone" class="mb-6 border border-dashed border-slate-700 rounded-lg p-3 text-sm text-slate-400 flex flex-wrap items-center gap-3">
+      <span class="font-medium text-slate-300">Bring your own:</span>
+      <span>Drop one or more <code class="font-mono text-slate-300">.ndjson</code> files here, or</span>
+      <label class="inline-flex items-center gap-2 cursor-pointer text-sky-400 hover:text-sky-300">
+        <input id="upload-input" type="file" accept=".ndjson,.jsonl,application/json" multiple class="hidden">
+        <span>browse&hellip;</span>
+      </label>
+      <span class="text-slate-500 text-xs">(parsed in your browser; nothing is uploaded anywhere)</span>
+      <div id="upload-status" class="basis-full text-xs"></div>
+      <div id="upload-list" class="basis-full text-xs flex flex-wrap gap-2"></div>
+    </div>
+
+    <nav class="flex gap-1 mb-6 border-b border-slate-800">
+      <button data-tab="browse" class="text-white px-4 py-2.5 text-sm font-medium border-b-2 border-sky-400 -mb-px transition-colors">
+        <span class="inline-flex items-center gap-2">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          Browse
+        </span>
+      </button>
+      <button data-tab="diff" class="text-slate-400 px-4 py-2.5 text-sm font-medium border-b-2 border-transparent -mb-px hover:text-slate-200 transition-colors">
+        <span class="inline-flex items-center gap-2">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h12"/><path d="m11 2 4 4-4 4"/><path d="M21 18H9"/><path d="m13 14-4 4 4 4"/></svg>
+          Diff
+        </span>
+      </button>
     </nav>
 
     <!-- Browse view -->
     <section data-view="browse">
       <div class="grid md:grid-cols-[1fr_auto] gap-3 mb-4">
         <div class="flex gap-2">
-          <select id="browse-snapshot" class="flex-1 bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm font-mono"></select>
-          <button id="browse-load" class="bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 text-sm font-medium rounded">Load</button>
+          <select id="browse-snapshot" class="flex-1 bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-sky-500/60 transition-colors"></select>
+          <button id="browse-load" class="bg-gradient-to-br from-sky-500 to-cyan-600 hover:from-sky-400 hover:to-cyan-500 text-white px-4 py-2 text-sm font-medium rounded shadow-sm shadow-sky-900/40 transition-colors">Load</button>
         </div>
-        <div id="browse-meta" class="text-xs text-slate-500 self-center"></div>
+        <div id="browse-meta" class="text-sm text-slate-400 self-center"></div>
       </div>
 
       <div id="browse-progress" class="mb-4"></div>
 
-      <div class="grid md:grid-cols-[1fr_auto] gap-3 mb-3 items-baseline">
-        <input id="browse-filter" type="text" placeholder="Filter providers (name, GUID, event description, keyword name)…" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm">
-        <div id="browse-count" class="text-xs text-slate-500 font-mono"></div>
+      <div class="grid md:grid-cols-2 gap-3 mb-3">
+        <div>
+          <label class="flex items-center gap-1.5 text-sm text-slate-400 mb-1.5 font-medium">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg>
+            Provider
+          </label>
+          <input id="filter-provider" type="text" placeholder="name, GUID, or resource file path" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-sky-500/60 transition-colors">
+        </div>
+        <div>
+          <label class="flex items-center gap-1.5 text-sm text-slate-400 mb-1.5 font-medium">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h10"/></svg>
+            Event description
+          </label>
+          <input id="filter-description" type="text" placeholder="substring of an event Description" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-sky-500/60 transition-colors">
+        </div>
+        <div>
+          <label class="flex items-center gap-1.5 text-sm text-slate-400 mb-1.5 font-medium">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h16"/><path d="M4 15h16"/><path d="M10 3 8 21"/><path d="M16 3 14 21"/></svg>
+            Keyword
+          </label>
+          <input id="filter-keyword" type="text" placeholder="provider or event keyword name" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-sky-500/60 transition-colors">
+        </div>
+        <div>
+          <label class="flex items-center gap-1.5 text-sm text-slate-400 mb-1.5 font-medium">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m8 6-6 6 6 6"/><path d="m16 6 6 6-6 6"/></svg>
+            Template / field
+          </label>
+          <input id="filter-template" type="text" placeholder="substring of an event Template (XML field names, types)" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-sky-500/60 transition-colors">
+        </div>
+      </div>
+
+      <div class="flex justify-between items-center mb-3 gap-3 flex-wrap">
+        <div class="flex items-center gap-3">
+          <div class="inline-flex bg-slate-900 border border-slate-700 rounded-md p-0.5" role="group" aria-label="Schema source filter">
+            <button data-schema-browse="all" class="px-3 py-1 text-sm rounded transition-colors">All</button>
+            <button data-schema-browse="manifest" class="px-3 py-1 text-sm rounded transition-colors">Manifest</button>
+            <button data-schema-browse="mof" class="px-3 py-1 text-sm rounded transition-colors">MOF</button>
+          </div>
+          <button id="filter-clear" class="text-sm text-slate-500 hover:text-slate-300">Clear filters</button>
+        </div>
+        <div id="browse-count" class="text-sm text-slate-500"></div>
       </div>
 
       <div id="browse-results" class="bg-slate-900 border border-slate-800 rounded"></div>
@@ -53,22 +126,58 @@
     <section data-view="diff" hidden>
       <div class="grid md:grid-cols-2 gap-3 mb-4">
         <div>
-          <label class="block text-xs text-slate-500 uppercase tracking-wide mb-1">Snapshot A (baseline)</label>
-          <select id="diff-a" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm font-mono"></select>
+          <label class="block text-sm text-slate-400 mb-1.5 font-medium">Snapshot A (baseline)</label>
+          <select id="diff-a" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-sky-500/60 transition-colors"></select>
         </div>
         <div>
-          <label class="block text-xs text-slate-500 uppercase tracking-wide mb-1">Snapshot B (compare)</label>
-          <select id="diff-b" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm font-mono"></select>
+          <label class="block text-sm text-slate-400 mb-1.5 font-medium">Snapshot B (compare)</label>
+          <select id="diff-b" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-sky-500/60 transition-colors"></select>
         </div>
       </div>
 
-      <div class="grid md:grid-cols-[1fr_auto_auto] gap-3 mb-4 items-end">
+      <div class="flex items-center gap-3 mb-3">
+        <button id="diff-run" class="bg-gradient-to-br from-sky-500 to-cyan-600 hover:from-sky-400 hover:to-cyan-500 text-white px-4 py-2 text-sm font-medium rounded shadow-sm shadow-sky-900/40 transition-colors">Compute diff</button>
+        <div id="diff-status" class="text-xs text-slate-500"></div>
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-3 mb-3">
         <div>
-          <label class="block text-xs text-slate-500 uppercase tracking-wide mb-1">Filter by provider name (optional)</label>
-          <input id="diff-filter" type="text" placeholder="e.g. Threat, Kerberos, Kernel-Process…" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm">
+          <label class="flex items-center gap-1.5 text-sm text-slate-400 mb-1.5 font-medium">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg>
+            Provider
+          </label>
+          <input id="diff-filter-provider" type="text" placeholder="name, GUID, or resource file path" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-sky-500/60 transition-colors">
         </div>
-        <button id="diff-run" class="bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 text-sm font-medium rounded h-fit">Compute diff</button>
-        <div id="diff-status" class="text-xs text-slate-500 self-center"></div>
+        <div>
+          <label class="flex items-center gap-1.5 text-sm text-slate-400 mb-1.5 font-medium">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h10"/></svg>
+            Event description
+          </label>
+          <input id="diff-filter-description" type="text" placeholder="substring of an event Description" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-sky-500/60 transition-colors">
+        </div>
+        <div>
+          <label class="flex items-center gap-1.5 text-sm text-slate-400 mb-1.5 font-medium">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h16"/><path d="M4 15h16"/><path d="M10 3 8 21"/><path d="M16 3 14 21"/></svg>
+            Keyword
+          </label>
+          <input id="diff-filter-keyword" type="text" placeholder="event keyword name" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-sky-500/60 transition-colors">
+        </div>
+        <div>
+          <label class="flex items-center gap-1.5 text-sm text-slate-400 mb-1.5 font-medium">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m8 6-6 6 6 6"/><path d="m16 6 6 6-6 6"/></svg>
+            Template / field
+          </label>
+          <input id="diff-filter-template" type="text" placeholder="substring of an event Template" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-sky-500/60 transition-colors">
+        </div>
+      </div>
+
+      <div class="flex justify-between items-center mb-3 gap-3 flex-wrap">
+        <div class="inline-flex bg-slate-900 border border-slate-700 rounded-md p-0.5" role="group" aria-label="Schema source filter">
+          <button data-schema-diff="all" class="px-3 py-1 text-sm rounded transition-colors">All</button>
+          <button data-schema-diff="manifest" class="px-3 py-1 text-sm rounded transition-colors">Manifest</button>
+          <button data-schema-diff="mof" class="px-3 py-1 text-sm rounded transition-colors">MOF</button>
+        </div>
+        <button id="diff-filter-clear" class="text-sm text-slate-500 hover:text-slate-300">Clear filters</button>
       </div>
 
       <div id="diff-results"></div>
