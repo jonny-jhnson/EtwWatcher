@@ -1,32 +1,32 @@
 {
   "snapshots": [
     {
-      "file": "10_0_19045_5371.ndjson",
+      "file": "10_0_19045_5371.ndjson.gz",
       "label": "Build 10.0.19045.5371",
       "osVersion": "10.0.19045.5371"
     },
     {
-      "file": "10_0_20348_4297_Server.ndjson",
+      "file": "10_0_20348_4297_Server.ndjson.gz",
       "label": "Build 10.0.20348.4297 (Server)",
       "osVersion": "10.0.20348.4297"
     },
     {
-      "file": "10_0_26100_4946.ndjson",
+      "file": "10_0_26100_4946.ndjson.gz",
       "label": "Build 10.0.26100.4946",
       "osVersion": "10.0.26100.4946"
     },
     {
-      "file": "10_0_26200_7171.ndjson",
+      "file": "10_0_26200_7171.ndjson.gz",
       "label": "Build 10.0.26200.7171",
       "osVersion": "10.0.26200.7171"
     },
     {
-      "file": "10_0_26200_7462.ndjson",
+      "file": "10_0_26200_7462.ndjson.gz",
       "label": "Build 10.0.26200.7462",
       "osVersion": "10.0.26200.7462"
     },
     {
-      "file": "10_0_28020_1921_Insider.ndjson",
+      "file": "10_0_28020_1921_Insider.ndjson.gz",
       "label": "Build 10.0.28020.1921 (Insider)",
       "osVersion": "10.0.28020.1921"
     }

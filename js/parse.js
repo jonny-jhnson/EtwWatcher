@@ -24,10 +24,21 @@ export async function loadSnapshot(file, onProgress) {
     throw new Error(`Failed to load ${url}: ${response.status} ${response.statusText}`);
   }
 
+  // Compressed payload size, before decompression. We use this for the progress
+  // bar (it's the actual number of bytes flowing over the network); the
+  // post-gunzip stream will report many more bytes. For plain .ndjson, the
+  // compressed and decompressed totals match.
   const total = Number(response.headers.get('content-length')) || 0;
-  const reader = response.body.getReader();
+
+  // GitHub Pages serves .gz files as opaque application/gzip - the browser
+  // does NOT auto-decompress. We pipe through DecompressionStream when the
+  // filename ends in .gz; otherwise the stream passes through unchanged.
+  const stream = file.toLowerCase().endsWith('.gz')
+    ? response.body.pipeThrough(new DecompressionStream('gzip'))
+    : response.body;
+
   return consumeNdjsonStream({
-    reader,
+    reader: stream.getReader(),
     total,
     onProgress,
     keyForCache: file,
@@ -42,9 +53,11 @@ export async function loadSnapshotFromFile(fileHandle, onProgress) {
   // Replace any prior copy under the same name so re-uploads pick up edits
   _snapshotCache.delete(key);
 
-  const reader = fileHandle.stream().getReader();
+  const stream = fileHandle.name.toLowerCase().endsWith('.gz')
+    ? fileHandle.stream().pipeThrough(new DecompressionStream('gzip'))
+    : fileHandle.stream();
   return consumeNdjsonStream({
-    reader,
+    reader: stream.getReader(),
     total: fileHandle.size,
     onProgress,
     keyForCache: key,

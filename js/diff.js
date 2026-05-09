@@ -70,6 +70,12 @@ function diffProvider(a, b) {
   pushIfDifferent(fieldsChanged, 'ProviderName', a.ProviderName, b.ProviderName);
   pushIfDifferent(fieldsChanged, 'SchemaSource', a.SchemaSource, b.SchemaSource);
   pushIfDifferent(fieldsChanged, 'ResourceFilePath', a.ResourceFilePath, b.ResourceFilePath);
+  // For TraceLogging providers, the Sources[] array may differ across builds
+  // (a provider gets added to or removed from a binary). Compare as joined,
+  // sorted strings so unrelated ordering doesn't trip a false-positive.
+  const aSrc = Array.isArray(a.Sources) ? [...a.Sources].sort().join('\n') : null;
+  const bSrc = Array.isArray(b.Sources) ? [...b.Sources].sort().join('\n') : null;
+  if (aSrc !== bSrc) pushIfDifferent(fieldsChanged, 'Sources', aSrc, bSrc);
 
   const aEvents = indexEvents(a.Events);
   const bEvents = indexEvents(b.Events);
@@ -105,6 +111,7 @@ function diffProvider(a, b) {
     providerName: b.ProviderName,
     resourceFilePath: b.ResourceFilePath,
     schemaSource: b.SchemaSource,
+    sources: Array.isArray(b.Sources) ? b.Sources : undefined,
     providerFieldsChanged: fieldsChanged,
     eventsAdded,
     eventsRemoved,

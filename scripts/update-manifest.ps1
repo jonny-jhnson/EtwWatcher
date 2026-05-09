@@ -1,10 +1,15 @@
 <#
 .SYNOPSIS
-Regenerates snapshots/manifest.json from the .ndjson files in snapshots/.
+Compresses *.ndjson to *.ndjson.gz and regenerates snapshots/manifest.json.
 
 .DESCRIPTION
-Scans snapshots/*.ndjson, reads each file's header line to extract OSVersion,
-sorts entries by OSVersion (numeric segments), and writes the manifest.
+- Any plain *.ndjson found in snapshots/ is gzipped in place. The original
+  is removed; only the .ndjson.gz remains. (TraceLogging-aware NDJSONs
+  routinely exceed GitHub's 100 MB file limit; gzip cuts them ~4-6x to
+  comfortably under it.)
+- Then scans snapshots/*.ndjson.gz, reads each file's header line to extract
+  OSVersion (decompressing as it goes), sorts entries by OSVersion, and
+  writes the manifest.
 
 Existing labels are preserved so customizations like "(Insider)" survive
 re-runs. Files no longer present are dropped from the manifest. New files
@@ -29,6 +34,50 @@ if (-not (Test-Path $Root)) {
 }
 $Root = (Resolve-Path $Root).Path
 
+function Compress-NdjsonInPlace {
+    param([string]$Path)
+    $gz = $Path + '.gz'
+    $inStream = [System.IO.File]::OpenRead($Path)
+    try {
+        $outStream = [System.IO.File]::Create($gz)
+        try {
+            $gzStream = New-Object System.IO.Compression.GZipStream(
+                $outStream, [System.IO.Compression.CompressionLevel]::Optimal)
+            try {
+                $inStream.CopyTo($gzStream)
+            } finally {
+                $gzStream.Dispose()
+            }
+        } finally {
+            $outStream.Dispose()
+        }
+    } finally {
+        $inStream.Dispose()
+    }
+    Remove-Item -LiteralPath $Path -Force
+}
+
+function Read-FirstLineFromGzip {
+    param([string]$Path)
+    $fs = [System.IO.File]::OpenRead($Path)
+    try {
+        $gz = New-Object System.IO.Compression.GZipStream(
+            $fs, [System.IO.Compression.CompressionMode]::Decompress)
+        try {
+            $reader = New-Object System.IO.StreamReader($gz)
+            try {
+                return $reader.ReadLine()
+            } finally {
+                $reader.Dispose()
+            }
+        } finally {
+            $gz.Dispose()
+        }
+    } finally {
+        $fs.Dispose()
+    }
+}
+
 function Get-VersionSortKey {
     param([string]$Version)
     # Pad each numeric segment so 10.0.26200.7171 sorts before 10.0.28020.1921
@@ -44,7 +93,19 @@ function Get-VersionSortKey {
     return $sb.ToString()
 }
 
-# Preserve any existing custom labels
+# Compress any plain .ndjson files first so we only ever ship .ndjson.gz.
+$plain = Get-ChildItem -Path $Root -Filter '*.ndjson' -File -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -notlike '*.ndjson.gz' }
+foreach ($p in $plain) {
+    Write-Host ("Compressing {0}..." -f $p.Name)
+    try {
+        Compress-NdjsonInPlace -Path $p.FullName
+    } catch {
+        Write-Warning ("Failed to compress {0}: {1}" -f $p.Name, $_.Exception.Message)
+    }
+}
+
+# Preserve any existing custom labels (keyed by current filename, including .gz)
 $existingLabels = @{}
 if (Test-Path $ManifestPath) {
     try {
@@ -58,9 +119,14 @@ if (Test-Path $ManifestPath) {
 }
 
 $entries = @()
-$files = Get-ChildItem -Path $Root -Filter '*.ndjson' -File -ErrorAction SilentlyContinue
+$files = Get-ChildItem -Path $Root -Filter '*.ndjson.gz' -File -ErrorAction SilentlyContinue
 foreach ($f in $files) {
-    $firstLine = Get-Content -Path $f.FullName -TotalCount 1 -ErrorAction SilentlyContinue
+    try {
+        $firstLine = Read-FirstLineFromGzip -Path $f.FullName
+    } catch {
+        Write-Warning ("Skipping {0}: cannot read header ({1})" -f $f.Name, $_.Exception.Message)
+        continue
+    }
     if ([string]::IsNullOrWhiteSpace($firstLine)) {
         Write-Warning "Skipping empty file: $($f.Name)"
         continue
@@ -79,7 +145,7 @@ foreach ($f in $files) {
     if (-not $label) {
         $label = "Build $($header.OSVersion)"
         # Filename-driven annotations. Add more here as needed.
-        $base = [System.IO.Path]::GetFileNameWithoutExtension($f.Name)
+        $base = $f.Name -replace '\.ndjson\.gz$', ''
         if ($base -match '(?i)_Server')  { $label += ' (Server)' }
         if ($base -match '(?i)_Insider') { $label += ' (Insider)' }
     }
@@ -122,5 +188,5 @@ $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 
 Write-Host ("Wrote {0} entries to {1}" -f $sorted.Count, $ManifestPath)
 foreach ($e in $sorted) {
-    Write-Host ("  {0,-32} {1,-22} {2}" -f $e.file, $e.osVersion, $e.label)
+    Write-Host ("  {0,-36} {1,-22} {2}" -f $e.file, $e.osVersion, $e.label)
 }

@@ -32,18 +32,19 @@ Snapshots will be added on an ongoing basis. The intent is to cover:
 
 - **Patch Tuesday cumulative updates** for currently-supported Windows builds, so you can see what shifted between e.g. `26200.7171` and `26200.7462`.
 - **Insider / Canary builds** as Microsoft ships them - early signal on what providers and events are being added or restructured before they hit general availability.
-- **TraceLogging provider support** - extending the snapshot format and the diff UI to cover TraceLogging in addition to Manifest/MOF.
 
 If you want a specific build snapshotted, open an issue with the build number, or grab [ETWInspector](https://github.com/jonny-jhnson/ETWInspector) and contribute the NDJSON directly via the [Adding a snapshot](#adding-a-snapshot-contributors) flow below.
 
 ## What it does
 
-- **Browse** - pick a snapshot and explore every Manifest/MOF provider on that Windows build. Filter by provider (name, GUID, resource path), event description, keyword name, or template XML field. Toggle Manifest/MOF/All at the top to scope by schema source. Click a provider to see its events, levels, opcodes, keyword names, and full template XML.
+- **Browse** - pick a snapshot and explore every Manifest, MOF, or TraceLogging provider on that Windows build. Filter by provider (name, GUID, resource path), event description, keyword name, or template XML field. Toggle All / Manifest / MOF / TraceLogging at the top to scope by schema source. Click a provider to see its events, levels, opcodes, keyword names, full template XML, and (for TraceLogging) the list of binaries the provider was discovered in.
 - **Diff** - pick two snapshots and see exactly what changed: providers added, providers whose events were added/removed/changed, and per-event field-level diffs with line-by-line highlighting on Description and Template.
 
 Everything runs in your browser. No backend, no telemetry. The page fetches the NDJSON files committed to `/snapshots/` and parses them client-side.
 
-> **Scope today: Manifest and MOF providers only.** TraceLogging providers aren't in the snapshots yet - support is on the roadmap and will roll in once ETWInspector's TraceLogging output is wired through end-to-end.
+Manifest, MOF, and TraceLogging providers are covered (out of the four ETW provider types - WPP is not yet supported). Toggle between them in the Browse and Diff views with the schema-source segmented control.
+
+> Note: MOF *providers* are listed, but their *events* don't currently populate due to enumeration complexities - the MOF event metadata isn't always present in WMI even when the provider class is registered. Manifest and TraceLogging providers carry their full event metadata.
 
 ## ETW Provider Snapshots
 

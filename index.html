@@ -41,7 +41,7 @@
       <span class="font-medium text-slate-300">Bring your own:</span>
       <span>Drop one or more <code class="font-mono text-slate-300">.ndjson</code> files here, or</span>
       <label class="inline-flex items-center gap-2 cursor-pointer text-sky-400 hover:text-sky-300">
-        <input id="upload-input" type="file" accept=".ndjson,.jsonl,application/json" multiple class="hidden">
+        <input id="upload-input" type="file" accept=".ndjson,.jsonl,.ndjson.gz,.jsonl.gz,application/json,application/gzip" multiple class="hidden">
         <span>browse&hellip;</span>
       </label>
       <span class="text-slate-500 text-xs">(parsed in your browser; nothing is uploaded anywhere)</span>
@@ -113,6 +113,7 @@
             <button data-schema-browse="all" class="px-3 py-1 text-sm rounded transition-colors">All</button>
             <button data-schema-browse="manifest" class="px-3 py-1 text-sm rounded transition-colors">Manifest</button>
             <button data-schema-browse="mof" class="px-3 py-1 text-sm rounded transition-colors">MOF</button>
+            <button data-schema-browse="tracelogging" class="px-3 py-1 text-sm rounded transition-colors">TraceLogging</button>
           </div>
           <button id="filter-clear" class="text-sm text-slate-500 hover:text-slate-300">Clear filters</button>
         </div>
@@ -176,6 +177,7 @@
           <button data-schema-diff="all" class="px-3 py-1 text-sm rounded transition-colors">All</button>
           <button data-schema-diff="manifest" class="px-3 py-1 text-sm rounded transition-colors">Manifest</button>
           <button data-schema-diff="mof" class="px-3 py-1 text-sm rounded transition-colors">MOF</button>
+          <button data-schema-diff="tracelogging" class="px-3 py-1 text-sm rounded transition-colors">TraceLogging</button>
         </div>
         <button id="diff-filter-clear" class="text-sm text-slate-500 hover:text-slate-300">Clear filters</button>
       </div>

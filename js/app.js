@@ -121,7 +121,7 @@ async function applyUrlState() {
       filters.keyword = params.get('k') ?? '';
       filters.template = params.get('t') ?? '';
       const sParam = (params.get('s') ?? 'all').toLowerCase();
-      filters.schemaSource = ['manifest', 'mof', 'all'].includes(sParam) ? sParam : 'all';
+      filters.schemaSource = ['manifest', 'mof', 'tracelogging', 'all'].includes(sParam) ? sParam : 'all';
       $('#filter-provider').value = filters.provider;
       $('#filter-description').value = filters.description;
       $('#filter-keyword').value = filters.keyword;
@@ -142,7 +142,7 @@ async function applyUrlState() {
       filters.keyword = params.get('k') ?? '';
       filters.template = params.get('t') ?? '';
       const sParam = (params.get('s') ?? 'all').toLowerCase();
-      filters.schemaSource = ['manifest', 'mof', 'all'].includes(sParam) ? sParam : 'all';
+      filters.schemaSource = ['manifest', 'mof', 'tracelogging', 'all'].includes(sParam) ? sParam : 'all';
       $('#diff-filter-provider').value = filters.provider;
       $('#diff-filter-description').value = filters.description;
       $('#diff-filter-keyword').value = filters.keyword;
@@ -526,7 +526,7 @@ function providerRowHtml(p, i, expandedSet, filters) {
     </div>`;
   if (!expanded) return head;
 
-  const path = p.ResourceFilePath ? `<div class="text-xs text-slate-500 mb-3"><span class="text-slate-400">ResourceFilePath:</span> <span class="font-mono">${escapeHtml(p.ResourceFilePath)}</span></div>` : '';
+  const path = providerSourcesHtml(p);
   const keywords = (p.Keywords ?? []).length === 0 ? '' : `
     <details class="mb-3">
       <summary class="text-xs text-slate-400 cursor-pointer hover:text-slate-200">${(p.Keywords ?? []).length} provider keyword(s) defined</summary>
@@ -1119,6 +1119,28 @@ function decoratedLabel(label, osVersion) {
     return `${l} (${osVersion})`;
   }
   return l;
+}
+
+// Renders the file-of-origin block for an expanded provider row. Manifest/MOF
+// providers have a single ResourceFilePath; TraceLogging providers have a
+// Sources[] array (the same provider can be embedded in multiple binaries).
+function providerSourcesHtml(p) {
+  const sources = Array.isArray(p.Sources) ? p.Sources : [];
+  if (sources.length > 0) {
+    const summary = sources.length === 1
+      ? '1 source binary'
+      : `${sources.length} source binaries`;
+    const list = sources.map((s) => `<li class="font-mono">${escapeHtml(s)}</li>`).join('');
+    return `
+      <details class="mb-3">
+        <summary class="text-xs text-slate-400 cursor-pointer hover:text-slate-200">${summary}</summary>
+        <ul class="text-xs text-slate-300 mt-1 space-y-0.5 ml-4 list-disc">${list}</ul>
+      </details>`;
+  }
+  if (p.ResourceFilePath) {
+    return `<div class="text-xs text-slate-500 mb-3"><span class="text-slate-400">ResourceFilePath:</span> <span class="font-mono">${escapeHtml(p.ResourceFilePath)}</span></div>`;
+  }
+  return '';
 }
 
 function snapshotSummaryLine(snap) {
