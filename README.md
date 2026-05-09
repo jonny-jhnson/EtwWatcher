@@ -46,6 +46,8 @@ Manifest, MOF, and TraceLogging providers are covered (out of the four ETW provi
 
 > Note: MOF *providers* are listed, but their *events* don't currently populate due to enumeration complexities - the MOF event metadata isn't always present in WMI even when the provider class is registered. Manifest and TraceLogging providers carry their full event metadata.
 
+> Note on TraceLogging: events are not individually mapped to a specific provider. The embedded ETW0 metadata blob lists every provider in the binary followed by every event, with no per-event provider ID, so when a binary declares multiple TraceLogging providers each one shows the binary's full event list. If you need a real per-event binding, do static analysis on the binary - the [TLGMapper](https://github.com/AsuNa-jp/TLGMapper) IDA plugin walks `TraceLoggingWrite` call sites and recovers the actual mapping.
+
 ## ETW Provider Snapshots
 
 Stored in [NDJSON](https://github.com/ndjson/ndjson-spec) (newline-delimited JSON: one JSON object per line) in `/snapshots/`:
