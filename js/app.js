@@ -173,10 +173,10 @@ function optionExists(selectSel, value) {
 
 function populateSnapshotPickers() {
   const bundled = (manifest?.snapshots ?? []).map(
-    (s) => `<option value="${escapeAttr(s.file)}">${escapeHtml(s.label)} (${escapeHtml(s.osVersion)})</option>`,
+    (s) => `<option value="${escapeAttr(s.file)}">${escapeHtml(decoratedLabel(s.label, s.osVersion))}</option>`,
   );
   const local = localSnapshots.map(
-    (s) => `<option value="${escapeAttr(s.key)}">[Local] ${escapeHtml(s.sourceName)} (${escapeHtml(s.osVersion)})</option>`,
+    (s) => `<option value="${escapeAttr(s.key)}">${escapeHtml(`[Local] ${decoratedLabel(s.sourceName, s.osVersion)}`)}</option>`,
   );
   const optsHtml = [...bundled, ...local].join('');
 
@@ -1109,6 +1109,16 @@ async function copyToClipboard(text) {
   } catch {
     return false;
   }
+}
+
+// Builds the dropdown label. If the human label already contains the
+// OS version (e.g. "Build 10.0.26200.7171"), don't repeat it.
+function decoratedLabel(label, osVersion) {
+  const l = label ?? '';
+  if (osVersion && !l.includes(osVersion)) {
+    return `${l} (${osVersion})`;
+  }
+  return l;
 }
 
 function snapshotSummaryLine(snap) {
