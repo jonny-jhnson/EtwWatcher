@@ -12,6 +12,22 @@
 
 const _snapshotCache = new Map(); // key -> parsed snapshot
 
+// Per-event Keywords are emitted as signed Int64 by EtwInspector. Values like
+// -9223372036854775804 are beyond IEEE 754 safe-integer range, so JSON.parse
+// silently rounds them to the nearest representable double (-2^63 here),
+// destroying the low keyword bits before any code can see them. Convert the
+// raw integer text to an unsigned 64-bit hex string before JSON.parse so
+// precision survives the round-trip; downstream code feeds the string into
+// BigInt() to render. Lookahead ensures we only rewrite the event-level
+// "Keywords":<number>, not the provider-level "Keywords":[...] array.
+function preservePrecision(line) {
+  return line.replace(/"Keywords":(-?\d+)(?=[,}\]])/g, (_m, num) => {
+    let n = BigInt(num);
+    if (n < 0n) n += 1n << 64n;
+    return `"Keywords":"0x${n.toString(16)}"`;
+  });
+}
+
 export async function loadSnapshot(file, onProgress) {
   if (_snapshotCache.has(file)) {
     onProgress?.({ done: true, fromCache: true });
@@ -92,7 +108,7 @@ async function consumeNdjsonStream({ reader, total, onProgress, keyForCache, fil
 
         let obj;
         try {
-          obj = JSON.parse(line);
+          obj = JSON.parse(preservePrecision(line));
         } catch (e) {
           throw new Error(`Could not parse line ${lineNumber} as JSON: ${e.message}`);
         }
@@ -114,7 +130,7 @@ async function consumeNdjsonStream({ reader, total, onProgress, keyForCache, fil
     const tail = buffer.trim();
     if (tail) {
       lineNumber++;
-      const obj = JSON.parse(tail);
+      const obj = JSON.parse(preservePrecision(tail));
       if (isFirstLine) {
         if (!isHeaderShape(obj)) {
           throw new Error("Single-line file isn't a snapshot header.");
