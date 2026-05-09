@@ -531,7 +531,7 @@ function providerRowHtml(p, i, expandedSet, filters) {
     <details class="mb-3">
       <summary class="text-xs text-slate-400 cursor-pointer hover:text-slate-200">${(p.Keywords ?? []).length} provider keyword(s) defined</summary>
       <table class="text-xs font-mono mt-2 w-full">
-        ${(p.Keywords ?? []).map((k) => `<tr><td class="pr-4 text-slate-300">${escapeHtml(k.Name ?? '')}</td><td class="text-slate-500">0x${(k.Value ?? 0).toString(16)}</td></tr>`).join('')}
+        ${(p.Keywords ?? []).map((k) => `<tr><td class="pr-4 text-slate-300">${escapeHtml(k.Name ?? '')}</td><td class="text-slate-500">0x${formatKeywordsHex(k.Value)}</td></tr>`).join('')}
       </table>
     </details>`;
 
@@ -588,7 +588,7 @@ function eventDetailHtml(e) {
   return `
     <div class="text-xs text-slate-400 mt-1 space-y-1">
       ${desc.length > 120 ? `<div class="whitespace-pre-wrap">${escapeHtml(desc)}</div>` : ''}
-      <div><span class="text-slate-500">Opcode:</span> ${e.Opcode} <span class="text-slate-500 ml-3">Task:</span> ${e.Task} <span class="text-slate-500 ml-3">Keywords:</span> 0x${(e.Keywords ?? 0).toString(16)}</div>
+      <div><span class="text-slate-500">Opcode:</span> ${e.Opcode} <span class="text-slate-500 ml-3">Task:</span> ${e.Task} <span class="text-slate-500 ml-3">Keywords:</span> 0x${formatEventKeywordsHex(e.Keywords)}</div>
       ${keywordChips ? `<div>${keywordChips}</div>` : ''}
       ${template}
     </div>`;
@@ -1054,6 +1054,43 @@ function escapeHtml(s) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+// ETW keyword bitmasks are 64-bit unsigned, but EtwInspector serializes them
+// from C# `long` (signed Int64). High-bit keywords come across the wire as
+// negative numbers, so plain .toString(16) renders them as e.g.
+// "-8000000000000000" instead of the correct unsigned hex. Mask to 64 bits
+// via BigInt to recover the on-the-wire ULONGLONG representation.
+function formatKeywordsHex(v) {
+  if (v == null) return '0';
+  let n;
+  try {
+    n = typeof v === 'bigint' ? v : BigInt(v);
+  } catch {
+    return String(v);
+  }
+  if (n < 0n) n += 1n << 64n;
+  return n.toString(16);
+}
+
+// Per-event keyword masks always carry the top 16 Microsoft-reserved bits
+// (bit 63 MICROSOFT_KEYWORD_RESERVED, bits 48-62 WINEVENT_KEYWORD_*: AUDIT_*,
+// CLASSIC_EVENTLOG, CORRELATION_HINT, WDI_*, etc.) - the OS OR's these in
+// at registration time, so otherwise every Threat-Intelligence event would
+// render as 0x8000000000000004 instead of the user-meaningful 0x4. Strip
+// them so the displayed hex matches the provider's keyword table and the
+// KeywordNames chips below.
+function formatEventKeywordsHex(v) {
+  if (v == null) return '0';
+  let n;
+  try {
+    n = typeof v === 'bigint' ? v : BigInt(v);
+  } catch {
+    return String(v);
+  }
+  if (n < 0n) n += 1n << 64n;
+  n &= 0x0000FFFFFFFFFFFFn;
+  return n.toString(16);
 }
 
 function escapeAttr(s) {
