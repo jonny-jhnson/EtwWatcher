@@ -69,46 +69,94 @@ function diffProvider(a, b) {
   const fieldsChanged = [];
   pushIfDifferent(fieldsChanged, 'ProviderName', a.ProviderName, b.ProviderName);
   pushIfDifferent(fieldsChanged, 'SchemaSource', a.SchemaSource, b.SchemaSource);
-  pushIfDifferent(fieldsChanged, 'ResourceFilePath', a.ResourceFilePath, b.ResourceFilePath);
+  // Compare on the basename only - the same DLL/EXE/SYS routinely shows up
+  // under different path prefixes (e.g. C:\Windows\System32\foo.dll vs
+  // %SystemRoot%\System32\foo.dll), which would otherwise produce a noisy
+  // diff for every such provider. The full paths still get reported when
+  // the actual file name changes.
+  if (resourceFileBasename(a.ResourceFilePath) !== resourceFileBasename(b.ResourceFilePath)) {
+    pushIfDifferent(fieldsChanged, 'ResourceFilePath', a.ResourceFilePath, b.ResourceFilePath);
+  }
   // For TraceLogging providers, the Sources[] array may differ across builds
-  // (a provider gets added to or removed from a binary). Compare as joined,
-  // sorted strings so unrelated ordering doesn't trip a false-positive.
+  // (a provider gets added to or removed from a binary). Compare on the
+  // sorted set of basenames (same rationale as ResourceFilePath above -
+  // C:\Windows\... vs %SystemRoot%\... is the same binary), but surface the
+  // original full paths in the diff entry when an actual binary changes.
   const aSrc = Array.isArray(a.Sources) ? [...a.Sources].sort().join('\n') : null;
   const bSrc = Array.isArray(b.Sources) ? [...b.Sources].sort().join('\n') : null;
-  if (aSrc !== bSrc) pushIfDifferent(fieldsChanged, 'Sources', aSrc, bSrc);
+  const aSrcKey = Array.isArray(a.Sources)
+    ? [...a.Sources].map(resourceFileBasename).sort().join('\n')
+    : null;
+  const bSrcKey = Array.isArray(b.Sources)
+    ? [...b.Sources].map(resourceFileBasename).sort().join('\n')
+    : null;
+  if (aSrcKey !== bSrcKey) pushIfDifferent(fieldsChanged, 'Sources', aSrc, bSrc);
 
-  // Group events by Id on each side. For each Id seen, exact (Id, Version)
-  // pairs diff in-place; B versions with no exact A counterpart pair against
-  // A's highest version of that Id so the schema delta surfaces as a "new
-  // version" diff rather than landing in eventsAdded. Critically this also
-  // catches the case where B keeps A's version AND adds newer versions on
-  // top (e.g. A has v1, B has v1+v2+v3) - the prior cross-bucket approach
-  // missed this because A's leftover bucket was empty after exact match.
-  const aByIdMap = new Map();
-  const bByIdMap = new Map();
+  // Group events on each side by the appropriate identity key. Manifest
+  // and MOF events identify by Id (with Version distinguishing schema
+  // bumps); TraceLogging events identify by Description (event name),
+  // because their Id and Version fields are typically 0/0 - the binary
+  // embeds a name array, not a numeric ID. Without this split, multiple
+  // TraceLogging events sharing (Id=0, Version=0) would collapse in the
+  // per-Version map and silently drop entries.
+  const schemaSource = (a.SchemaSource ?? b.SchemaSource ?? '').toLowerCase();
+  const isTraceLogging = schemaSource === 'tracelogging';
+  const groupKey = (e) => (isTraceLogging ? (e.Description ?? '') : (e.Id ?? 0));
+
+  const aByKey = new Map();
+  const bByKey = new Map();
   for (const e of a.Events ?? []) {
-    const id = e.Id ?? 0;
-    if (!aByIdMap.has(id)) aByIdMap.set(id, []);
-    aByIdMap.get(id).push(e);
+    const k = groupKey(e);
+    if (!aByKey.has(k)) aByKey.set(k, []);
+    aByKey.get(k).push(e);
   }
   for (const e of b.Events ?? []) {
-    const id = e.Id ?? 0;
-    if (!bByIdMap.has(id)) bByIdMap.set(id, []);
-    bByIdMap.get(id).push(e);
+    const k = groupKey(e);
+    if (!bByKey.has(k)) bByKey.set(k, []);
+    bByKey.get(k).push(e);
   }
 
   const eventsAdded = [];
   const eventsRemoved = [];
   const eventsChanged = [];
 
-  const allIds = new Set([...aByIdMap.keys(), ...bByIdMap.keys()]);
-  for (const id of allIds) {
-    const aList = aByIdMap.get(id) ?? [];
-    const bList = bByIdMap.get(id) ?? [];
+  const allKeys = new Set([...aByKey.keys(), ...bByKey.keys()]);
+  for (const k of allKeys) {
+    const aList = aByKey.get(k) ?? [];
+    const bList = bByKey.get(k) ?? [];
 
     if (aList.length === 0) { eventsAdded.push(...bList); continue; }
     if (bList.length === 0) { eventsRemoved.push(...aList); continue; }
 
+    if (isTraceLogging) {
+      // TraceLogging within a same-name group: exact Template match = same
+      // event (template content IS the event identity for TraceLogging).
+      // Anything left over after exact matching is a distinct event, not a
+      // schema evolution - mark as removed/added rather than pairing across
+      // different templates and producing a confusing "changed" entry.
+      const aRemaining = [...aList];
+      const bRemaining = [...bList];
+      for (let i = bRemaining.length - 1; i >= 0; i--) {
+        const be = bRemaining[i];
+        const aIdx = aRemaining.findIndex(
+          (ae) => (ae.Template ?? '') === (be.Template ?? ''),
+        );
+        if (aIdx >= 0) {
+          const ed = diffEvent(aRemaining[aIdx], be);
+          if (ed) eventsChanged.push(ed);
+          aRemaining.splice(aIdx, 1);
+          bRemaining.splice(i, 1);
+        }
+      }
+      eventsRemoved.push(...aRemaining);
+      eventsAdded.push(...bRemaining);
+      continue;
+    }
+
+    // Manifest/MOF within a same-Id group: exact (Id, Version) match diffs
+    // in place; B versions with no exact A counterpart pair against A's
+    // highest version of that Id as a "new version" diff. A-only versions
+    // for the same Id are implicitly superseded by B's existing versions.
     const aByVer = new Map();
     for (const e of aList) aByVer.set(e.Version ?? 0, e);
     const baselineA = [...aList].sort(
@@ -128,10 +176,6 @@ function diffProvider(a, b) {
         }
       }
     }
-    // A-only versions for this Id (in aList but not bList) are implicitly
-    // superseded by B's existing versions - skipping eventsRemoved here
-    // avoids noisy "v1 removed, v3 added" entries when the real story is
-    // "schema bumped".
   }
 
   eventsAdded.sort(eventOrder);
@@ -197,4 +241,13 @@ function setsEqual(a, b) {
   if (a.size !== b.size) return false;
   for (const v of a) if (!b.has(v)) return false;
   return true;
+}
+
+// Reduce a Windows path to its lowercased final segment so prefix variations
+// (drive-letter vs %SystemRoot%, backslash vs forward slash, casing) don't
+// register as a ResourceFilePath change.
+function resourceFileBasename(p) {
+  if (!p) return p;
+  const parts = String(p).split(/[\\/]/);
+  return (parts[parts.length - 1] ?? '').toLowerCase();
 }
