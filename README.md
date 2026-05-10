@@ -38,7 +38,7 @@ If you want a specific build snapshotted, open an issue with the build number, o
 ## What it does
 
 - **Browse** - pick a snapshot and explore every Manifest, MOF, or TraceLogging provider on that Windows build. Filter by provider (name, GUID, resource path), event description, keyword name, or template XML field. Toggle All / Manifest / MOF / TraceLogging at the top to scope by schema source. Click a provider to see its events, levels, opcodes, keyword names, full template XML, and (for TraceLogging) the list of binaries the provider was discovered in.
-- **Diff** - pick two snapshots and see exactly what changed: providers added, providers whose events were added/removed/changed, and per-event field-level diffs with line-by-line highlighting on Description and Template.
+- **Diff** - pick two snapshots and see exactly what changed: providers added, providers whose events were added/removed/changed, and per-event field-level diffs with line-by-line highlighting on Description and Template. New schema versions of an existing event Id are paired against the closest version in the older snapshot and rendered as a "new version" diff (e.g. `Id 2 v1 -> v3 [NEW VERSION]`) instead of as separate "added" events.
 
 Everything runs in your browser. No backend, no telemetry. The page fetches the NDJSON files committed to `/snapshots/` and parses them client-side.
 

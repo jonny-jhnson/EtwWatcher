@@ -380,14 +380,15 @@ function renderBrowseList() {
 
   $('#browse-count').textContent = `${matches.length} / ${snap.providers.length}`;
 
-  const rows = matches.slice(0, 500).map((p, i) => providerRowHtml(p, i, state.browse.expanded, f));
+  const rows = matches.slice(0, 500).map((p) => providerRowHtml(p, state.browse.expanded, f));
   out.innerHTML = rows.join('');
   if (matches.length > 500) {
     out.insertAdjacentHTML('beforeend', `<p class="text-slate-500 text-sm mt-2">Showing first 500 of ${matches.length}. Refine the filter to narrow results.</p>`);
   }
 
   out.querySelectorAll('[data-toggle-provider]').forEach((row) => {
-    row.addEventListener('click', () => {
+    row.addEventListener('click', (e) => {
+      if (e.target.closest('[data-copy]')) return;
       const guid = row.dataset.toggleProvider;
       if (state.browse.expanded.has(guid)) state.browse.expanded.delete(guid);
       else state.browse.expanded.add(guid);
@@ -501,7 +502,7 @@ function filterChangedEventList(eds, f) {
   );
 }
 
-function providerRowHtml(p, i, expandedSet, filters) {
+function providerRowHtml(p, expandedSet, filters) {
   const guid = p.ProviderGuid;
   const expanded = expandedSet.has(guid);
   const totalEvents = (p.Events ?? []).length;
@@ -550,7 +551,7 @@ function providerRowHtml(p, i, expandedSet, filters) {
           <tr><th class="text-left py-1 pr-3 w-12">Id</th><th class="text-left pr-3 w-12">v</th><th class="text-left pr-3 w-16">Level</th><th class="text-left">Description</th></tr>
         </thead>
         <tbody>
-          ${visibleEvents.map((e, j) => eventRowHtml(p, e, j)).join('')}
+          ${visibleEvents.map(eventRowHtml).join('')}
         </tbody>
       </table>`;
   }
@@ -558,7 +559,7 @@ function providerRowHtml(p, i, expandedSet, filters) {
   return head + `<div class="px-6 py-3 bg-slate-900/40 border-b border-slate-800">${path}${keywords}${events}</div>`;
 }
 
-function eventRowHtml(p, e, idx) {
+function eventRowHtml(e) {
   const desc = e.Description ?? '';
   const truncDesc = desc.length > 120 ? desc.slice(0, 117) + '…' : desc;
   return `
@@ -739,7 +740,8 @@ function renderDiff() {
   out.innerHTML = summary + addedSection + changedSection + removedSection;
 
   out.querySelectorAll('[data-toggle-diff-provider]').forEach((row) => {
-    row.addEventListener('click', () => {
+    row.addEventListener('click', (e) => {
+      if (e.target.closest('[data-copy]')) return;
       const g = row.dataset.toggleDiffProvider;
       if (state.diff.expanded.has(g)) state.diff.expanded.delete(g);
       else state.diff.expanded.add(g);
@@ -917,8 +919,13 @@ function diffEventRowHtml(e, color) {
 const LONG_TEXT_FIELDS = new Set(['Description', 'Template', 'KeywordNames', 'ResourceFilePath']);
 
 function diffEventChangedHtml(ed) {
-  const scalarChanges = ed.changes.filter((c) => !isLongTextChange(c));
-  const longChanges = ed.changes.filter((c) => isLongTextChange(c));
+  const versionChanged = !!ed.versionChanged;
+  // Version is shown in the header for bumps; suppress it from the scalar table.
+  const visibleChanges = versionChanged
+    ? ed.changes.filter((c) => c.field !== 'Version')
+    : ed.changes;
+  const scalarChanges = visibleChanges.filter((c) => !isLongTextChange(c));
+  const longChanges = visibleChanges.filter((c) => isLongTextChange(c));
 
   const scalars = scalarChanges.length === 0 ? '' : `
     <table class="text-xs font-mono w-full mb-3">
@@ -939,9 +946,16 @@ function diffEventChangedHtml(ed) {
 
   const longs = longChanges.map(longTextChangePanelHtml).join('');
 
+  const aVer = ed.a?.Version ?? ed.version;
+  const bVer = ed.b?.Version ?? ed.version;
+  const versionDisplay = versionChanged ? `v${aVer} -> v${bVer}` : `v${ed.version}`;
+  const versionBadge = versionChanged
+    ? '<span class="ml-2 inline-block px-1.5 py-0.5 text-[10px] uppercase tracking-wide bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded">New version</span>'
+    : '';
+
   return `
     <div class="border border-slate-800 rounded p-3 mb-3 bg-slate-900/40">
-      <div class="text-xs text-amber-300 font-mono mb-2">Id ${ed.id} v${ed.version}</div>
+      <div class="text-xs text-amber-300 font-mono mb-2">Id ${ed.id} ${versionDisplay}${versionBadge}</div>
       ${scalars}
       ${longs}
     </div>`;
@@ -1099,7 +1113,7 @@ function escapeAttr(s) {
 
 function copyBtn(value, label) {
   if (!value) return '';
-  return `<button type="button" data-copy="${escapeAttr(value)}" title="Copy ${escapeAttr(label)}" class="ml-1 text-slate-600 hover:text-sky-400 text-xs align-baseline" aria-label="Copy ${escapeAttr(label)}">&#x2398;</button>`;
+  return `<button type="button" data-copy="${escapeAttr(value)}" title="Copy ${escapeAttr(label)}" class="ml-1.5 px-1.5 py-0.5 text-[10px] uppercase tracking-wide font-medium border border-slate-700 rounded text-slate-400 hover:text-sky-300 hover:border-sky-500/50 align-middle transition-colors" aria-label="Copy ${escapeAttr(label)}">Copy</button>`;
 }
 
 document.addEventListener('click', (e) => {
