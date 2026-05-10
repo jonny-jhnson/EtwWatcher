@@ -5,3 +5,7 @@
 node_modules/
 *.log
 .env
+
+# Plain NDJSON snapshots exceed GitHub's 100 MB push limit; commit only the
+# .gz form (scripts/update-manifest.ps1 compresses + removes the original).
+snapshots/*.ndjson

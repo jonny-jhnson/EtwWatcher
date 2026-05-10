@@ -77,20 +77,61 @@ function diffProvider(a, b) {
   const bSrc = Array.isArray(b.Sources) ? [...b.Sources].sort().join('\n') : null;
   if (aSrc !== bSrc) pushIfDifferent(fieldsChanged, 'Sources', aSrc, bSrc);
 
-  const aEvents = indexEvents(a.Events);
-  const bEvents = indexEvents(b.Events);
+  // Group events by Id on each side. For each Id seen, exact (Id, Version)
+  // pairs diff in-place; B versions with no exact A counterpart pair against
+  // A's highest version of that Id so the schema delta surfaces as a "new
+  // version" diff rather than landing in eventsAdded. Critically this also
+  // catches the case where B keeps A's version AND adds newer versions on
+  // top (e.g. A has v1, B has v1+v2+v3) - the prior cross-bucket approach
+  // missed this because A's leftover bucket was empty after exact match.
+  const aByIdMap = new Map();
+  const bByIdMap = new Map();
+  for (const e of a.Events ?? []) {
+    const id = e.Id ?? 0;
+    if (!aByIdMap.has(id)) aByIdMap.set(id, []);
+    aByIdMap.get(id).push(e);
+  }
+  for (const e of b.Events ?? []) {
+    const id = e.Id ?? 0;
+    if (!bByIdMap.has(id)) bByIdMap.set(id, []);
+    bByIdMap.get(id).push(e);
+  }
 
   const eventsAdded = [];
   const eventsRemoved = [];
   const eventsChanged = [];
 
-  for (const [k, e] of bEvents) if (!aEvents.has(k)) eventsAdded.push(e);
-  for (const [k, e] of aEvents) if (!bEvents.has(k)) eventsRemoved.push(e);
-  for (const [k, ae] of aEvents) {
-    const be = bEvents.get(k);
-    if (!be) continue;
-    const ed = diffEvent(ae, be);
-    if (ed) eventsChanged.push(ed);
+  const allIds = new Set([...aByIdMap.keys(), ...bByIdMap.keys()]);
+  for (const id of allIds) {
+    const aList = aByIdMap.get(id) ?? [];
+    const bList = bByIdMap.get(id) ?? [];
+
+    if (aList.length === 0) { eventsAdded.push(...bList); continue; }
+    if (bList.length === 0) { eventsRemoved.push(...aList); continue; }
+
+    const aByVer = new Map();
+    for (const e of aList) aByVer.set(e.Version ?? 0, e);
+    const baselineA = [...aList].sort(
+      (x, y) => (y.Version ?? 0) - (x.Version ?? 0),
+    )[0];
+
+    for (const be of bList) {
+      const ae = aByVer.get(be.Version ?? 0);
+      if (ae) {
+        const ed = diffEvent(ae, be);
+        if (ed) eventsChanged.push(ed);
+      } else {
+        const ed = diffEvent(baselineA, be);
+        if (ed) {
+          ed.versionChanged = true;
+          eventsChanged.push(ed);
+        }
+      }
+    }
+    // A-only versions for this Id (in aList but not bList) are implicitly
+    // superseded by B's existing versions - skipping eventsRemoved here
+    // avoids noisy "v1 removed, v3 added" entries when the real story is
+    // "schema bumped".
   }
 
   eventsAdded.sort(eventOrder);
@@ -119,19 +160,11 @@ function diffProvider(a, b) {
   };
 }
 
-function indexEvents(events) {
-  const m = new Map();
-  for (const e of events ?? []) {
-    const k = `${e.Id ?? 0}:${e.Version ?? 0}`;
-    if (!m.has(k)) m.set(k, e);
-  }
-  return m;
-}
-
 const eventOrder = (x, y) => (x.Id - y.Id) || (x.Version - y.Version);
 
 function diffEvent(a, b) {
   const changes = [];
+  pushIfDifferent(changes, 'Version', a.Version, b.Version);
   pushIfDifferent(changes, 'Level', a.Level, b.Level);
   pushIfDifferent(changes, 'Opcode', a.Opcode, b.Opcode);
   pushIfDifferent(changes, 'Task', a.Task, b.Task);
