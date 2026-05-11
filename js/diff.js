@@ -129,13 +129,27 @@ function diffProvider(a, b) {
     if (bList.length === 0) { eventsRemoved.push(...aList); continue; }
 
     if (isTraceLogging) {
-      // TraceLogging within a same-name group: exact Template match = same
-      // event (template content IS the event identity for TraceLogging).
-      // Anything left over after exact matching is a distinct event, not a
-      // schema evolution - mark as removed/added rather than pairing across
-      // different templates and producing a confusing "changed" entry.
+      // TraceLogging within a same-name group: pair in two phases.
+      // Phase 1 - exact-content matches (every diffable field equal,
+      // detected by `diffEvent(ae, be) == null`). These are "the same event,
+      // just possibly reordered in the binary's metadata array". Consuming
+      // them first prevents the iteration-order pairing bug where two same-
+      // Description+same-Template events that differ only in Opcode (or
+      // Task, Level, Keywords, etc.) get cross-paired and spuriously report
+      // scalar-field changes.
+      // Phase 2 - same-Template fallback for events whose template stayed
+      // put but a scalar field genuinely changed; diffEvent surfaces it.
+      // Phase 3 - leftovers (different template) become removed/added.
       const aRemaining = [...aList];
       const bRemaining = [...bList];
+      for (let i = bRemaining.length - 1; i >= 0; i--) {
+        const be = bRemaining[i];
+        const aIdx = aRemaining.findIndex((ae) => diffEvent(ae, be) == null);
+        if (aIdx >= 0) {
+          aRemaining.splice(aIdx, 1);
+          bRemaining.splice(i, 1);
+        }
+      }
       for (let i = bRemaining.length - 1; i >= 0; i--) {
         const be = bRemaining[i];
         const aIdx = aRemaining.findIndex(
