@@ -16,6 +16,11 @@
       "osVersion": "10.0.22621.1702"
     },
     {
+      "file": "10_0_22631_6199.ndjson.gz",
+      "label": "Build 10.0.22631.6199",
+      "osVersion": "10.0.22631.6199"
+    },
+    {
       "file": "10_0_26100_4652.ndjson.gz",
       "label": "Build 10.0.26100.4652",
       "osVersion": "10.0.26100.4652"
@@ -24,6 +29,11 @@
       "file": "10_0_26100_4946.ndjson.gz",
       "label": "Build 10.0.26100.4946",
       "osVersion": "10.0.26100.4946"
+    },
+    {
+      "file": "10_0_26100_32690_Server.ndjson.gz",
+      "label": "Build 10.0.26100.32690 (Server)",
+      "osVersion": "10.0.26100.32690"
     },
     {
       "file": "10_0_26200_7171.ndjson.gz",
