@@ -11,6 +11,16 @@
       "osVersion": "10.0.20348.4297"
     },
     {
+      "file": "10_0_22621_1702.ndjson.gz",
+      "label": "Build 10.0.22621.1702",
+      "osVersion": "10.0.22621.1702"
+    },
+    {
+      "file": "10_0_26100_4652.ndjson.gz",
+      "label": "Build 10.0.26100.4652",
+      "osVersion": "10.0.26100.4652"
+    },
+    {
       "file": "10_0_26100_4946.ndjson.gz",
       "label": "Build 10.0.26100.4946",
       "osVersion": "10.0.26100.4946"
@@ -24,6 +34,11 @@
       "file": "10_0_26200_7462.ndjson.gz",
       "label": "Build 10.0.26200.7462",
       "osVersion": "10.0.26200.7462"
+    },
+    {
+      "file": "10_0_28020_1546_Insider.ndjson.gz",
+      "label": "Build 10.0.28020.1546 (Insider)",
+      "osVersion": "10.0.28020.1546"
     },
     {
       "file": "10_0_28020_1921_Insider.ndjson.gz",
