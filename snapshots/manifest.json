@@ -64,6 +64,11 @@
       "file": "10_0_28120_2302_Insider.ndjson.gz",
       "label": "Build 10.0.28120.2302 (Insider)",
       "osVersion": "10.0.28120.2302"
+    },
+    {
+      "file": "10_0_28120_2630_Insider.ndjson.gz",
+      "label": "Build 10.0.28120.2630 (Insider)",
+      "osVersion": "10.0.28120.2630"
     }
   ]
 }
